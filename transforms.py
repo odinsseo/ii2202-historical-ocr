@@ -40,14 +40,14 @@ def plot_steps(imgs):
 
 def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     """
-        Convert an image to grayscale, normalize intensity values, and apply Gaussian blur for denoising.
+    Convert an image to grayscale, normalize intensity values, and apply Gaussian blur for denoising.
 
-        Args:
-            img (np.ndarray): Input image (BGR).
-            sigmaX (float): Standard deviation for Gaussian blur. Default is 1.0.
+    Args:
+        img (np.ndarray): Input image (BGR).
+        sigmaX (float): Standard deviation for Gaussian blur. Default is 1.0.
 
-        Returns:
-            np.ndarray: Preprocessed grayscale and denoised image.
+    Returns:
+        np.ndarray: Preprocessed grayscale and denoised image.
     """
 
     # Greyscale to reduce from three chanel to one channel
@@ -62,25 +62,43 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     return blur
 
 
-def roi_process(img: np.ndarray) -> np.ndarray:
+def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple:
+    """
+    Extract the largest contour from an image and return the contour, edges, 
+    and an annotated image showing the contours.
 
-    return img
+    Args:
+        image (np.ndarray): Input grayscale image.
+
+    Returns:
+        tuple: (largest_contour, edges, contour_image)
+            - largest_contour: The largest contour detected.
+            - edges: The edges detected using Canny edge detection.
+            - contour_image: Image with contours drawn.
+    """
+
+    # Edge detection using Canny
+    edges = cv2.Canny(img.astype(np.uint8), c_th1, c_th2)
+
+    # Find contours
+    cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Create an image to visualize contours
+    contour_image = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
+
+    # Find the largest contour by area
+    largest_contour = max(cnts, key=cv2.contourArea)
+
+    return largest_contour, edges, contour_image
 
 
 
 def emnist_transform(image: np.ndarray) -> np.ndarray:
 
     gray = greyscale_and_denoising(image)
-
-    # Extract the ROI
-    edges = cv2.Canny(gray.astype(np.uint8), 30, 150)
-
-    # Display the results
-    cnts, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contour_image= cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
-
-    largest_contour = max(cnts, key=cv2.contourArea)
+    
+    largest_contour, edges, contour_image = edge_extraction(gray)
 
     chars = []
 
