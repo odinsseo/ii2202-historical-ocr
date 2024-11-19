@@ -41,11 +41,9 @@ def plot_steps(imgs):
 def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     """
     Convert an image to grayscale, normalize intensity values, and apply Gaussian blur for denoising.
-
     Args:
         img (np.ndarray): Input image (BGR).
         sigmaX (float): Standard deviation for Gaussian blur. Default is 1.0.
-
     Returns:
         np.ndarray: Preprocessed grayscale and denoised image.
     """
@@ -59,7 +57,11 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     # Denoising
     blur = cv2.GaussianBlur(normalize, (0, 0), sigmaX=sigmaX)
 
-    return blur
+    # Stretch contrast
+    min_val, max_val = np.min(blur), np.max(blur)
+    stretched = ((blur - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+
+    return stretched
 
 
 # ~ STEP TWO (Edge extraction)
@@ -89,7 +91,7 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
     cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
 
     # Find the largest contour by area
-    largest_contour = max(cnts, key=cv2.contourArea)
+    largest_contour = max(cnts, key=lambda c: cv2.arcLength(c, closed=False))
 
     return largest_contour, edges, contour_image
 
@@ -183,11 +185,15 @@ def emnist_transform(image: np.ndarray) -> np.ndarray:
 
     grey = greyscale_and_denoising(image)
 
+    # change levels to black 
+    
+
     largest_contour, edges, contour_image = edge_extraction(grey)
 
     # compute the bounding box of the contour
     coor = cv2.boundingRect(largest_contour)
 
+    # call roi function to adapt to letter size and crop the image to 28x28 pixels
     roi_img_box = box_roi_and_resizing(grey, coor)
     roi_img_dynamic = dynamic_roi(grey, coor)
 
