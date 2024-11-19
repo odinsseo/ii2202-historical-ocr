@@ -37,7 +37,7 @@ def plot_steps(imgs):
     plt.show()
 
 
-
+# ~ STEP ONE (Greyscale)
 def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     """
     Convert an image to grayscale, normalize intensity values, and apply Gaussian blur for denoising.
@@ -62,6 +62,7 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     return blur
 
 
+# ~ STEP TWO (Edge extraction)
 def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple:
     """
     Extract the largest contour from an image and return the contour, edges, 
@@ -93,82 +94,109 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
     return largest_contour, edges, contour_image
 
 
+# ~ STEP TRHEE (OPT1: Dynamic ROI)
+def dynamic_roi(img: np.ndarray, coor: tuple, size: int = 28) -> np.ndarray:
+    """
+    Extracts and dynamically resizes a Region of Interest (ROI) from an image 
+    based on the given bounding box coordinates, ensuring the final output is 28x28 pixels.
 
-def emnist_transform(image: np.ndarray) -> np.ndarray:
+    Args:
+        img (np.ndarray): Input image (grayscale or single-channel image expected).
+        coor (tuple): A tuple of (x, y, w, h) defining the bounding box of the ROI.
+    Returns:
+        np.ndarray: The processed ROI as a 28x28 grayscale image.
+    """
 
-    gray = greyscale_and_denoising(image)
+    (x, y, w, h) = coor
+
+    #Extract the ROI dynamically based on the bounding box
+    roi = img[y : y + h, x : x + w]
+
+    #Resize dynamically based on the largest contour
+    tH, tW = roi.shape
+
+    if tW > tH:
+        resized_roi = cv2.resize(roi, (32, int(32 * tH / tW)), interpolation=cv2.INTER_CUBIC)
+    else:
+        resized_roi = cv2.resize(roi, (int(32 * tW / tH), 32), interpolation=cv2.INTER_CUBIC)
+
+    #Recalculate dimensions after resizing
+    tH, tW = resized_roi.shape
+
+    #Padding to enforce 28x28 size
+    dX = max((28 - tW) // 2, 0)
+    dY = max((28 - tH) // 2, 0)
     
-    largest_contour, edges, contour_image = edge_extraction(gray)
+    #Calculate the background intensity (e.g., median intensity)
+    background_intensity = int(np.median(img))
 
-    chars = []
+    # Apply padding
+    padded = cv2.copyMakeBorder(
+        resized_roi,
+        top=dY,
+        bottom=dY,
+        left=dX,
+        right=dX,
+        borderType=cv2.BORDER_CONSTANT,
+        value=background_intensity,
+    )
 
-    # compute the bounding box of the contour
-    (x, y, w, h) = cv2.boundingRect(largest_contour)
+    #Final resize to enforce exact 28x28 dimensions (if needed)
+    padded = cv2.resize(padded, (size, size), interpolation=cv2.INTER_CUBIC)
+
+    return padded
 
 
-    side_length = max(w, h)  # Use the larger dimension for square
+# ~ STEP THREE (OPT2: Box ROI)
+def box_roi_and_resizing(img: np.ndarray, coor: tuple, size: int = 28) -> np.ndarray:
+    """
+    Crop an ROI to a square based on bounding box and resize to 28x28.
+
+    Args:
+        img (np.ndarray): Input image.
+        coor (tuple): Bounding box coordinates as (x, y, w, h).
+
+    Returns:
+        np.ndarray: Resized square ROI (28x28).
+    """
+
+    (x, y, w, h) = coor
+
+    # Calculate square bounding box
+    side_length = max(w, h)  
     center_x = x + w // 2
     center_y = y + h // 2
     x_start = max(center_x - side_length // 2, 0)
     y_start = max(center_y - side_length // 2, 0)
-    x_end = min(center_x + side_length // 2, gray.shape[1])
-    y_end = min(center_y + side_length // 2, gray.shape[0])
+    x_end = min(center_x + side_length // 2, img.shape[1])
+    y_end = min(center_y + side_length // 2, img.shape[0])
 
-    # // filter out bounding boxes, ensuring they are neither too small
-    # // nor too large
-    # //if (w >= 5 and w <= 150) and (h >= 15 and h <= 120): --> take out for now as it is not working
-    # extract the character and threshold it to make the character
-    # appear as *white* (foreground) on a *black* background, then
-    # grab the width and height of the thresholded image
-    roi = gray[y_start:y_end, x_start:x_end]
+    # Crop and resize
+    roi = img[y_start:y_end, x_start:x_end]
+    square_roi = cv2.resize(roi, (size, size), interpolation=cv2.INTER_CUBIC)
 
-    square_roi = cv2.resize(roi, (28, 28), interpolation=cv2.INTER_CUBIC)
-    normalized = square_roi.astype("float32") / 255.0
+    return square_roi
 
 
 
-    # //(tH, tW) = roi.shape
-    # if the width is greater than the height, resize along the
-    # width dimension
+def emnist_transform(image: np.ndarray) -> np.ndarray:
 
-    # //if tW > tH:
-    # //    resized_roi = imutils.resize(roi, width=32, inter=cv2.INTER_CUBIC)
-    # //else:
-    # //    resized_roi = imutils.resize(roi, height=32, inter=cv2.INTER_CUBIC)
+    grey = greyscale_and_denoising(image)
 
+    largest_contour, edges, contour_image = edge_extraction(grey)
 
-    # re-grab the image dimensions (now that its been resized)
-    # and then determine how much we need to pad the width and
-    # height such that our image will be 28x28
-    # //(tH, tW) = square_roi.shape
+    # compute the bounding box of the contour
+    coor = cv2.boundingRect(largest_contour)
 
-    # //dX = int(max(0, 28 - tW) / 2.0)
-    # //dY = int(max(0, 28 - tH) / 2.0)
+    roi_img_box = box_roi_and_resizing(grey, coor)
+    roi_img_dynamic = dynamic_roi(grey, coor)
 
-    # //# Calculate the background intensity (e.g., average intensity)
-    # //background_intensity = int(np.median(gray)) 
-# //
-    # //# pad the image and force 28x28 dimensions
-    # //padded = cv2.copyMakeBorder(
-    # //    resized_roi,
-    # //    top=dY,
-    # //    bottom=dY,
-    # //    left=dX,
-    # //    right=dX,
-    # //    borderType=cv2.BORDER_CONSTANT,
-    # //    value=background_intensity,
-    # //)
-    # //padded = cv2.resize(padded, (28, 28), interpolation=cv2.INTER_CUBIC)
-    # //# prepare the padded image for classification via our
-    # //# handwriting OCR model
-    # //padded = padded.astype("float32") / 255.0
-    # //# update our list of characters that will be OCR'd
-    # //chars.append((padded, (x, y, w, h)))
-# //
-    # //transfor_img = chars[0][0].squeeze()
-    plot_steps([image, gray, edges, contour_image, roi, normalized])
+    # //normalized_box = roi_img_box.astype("float32") / 255.0
+    # //normalized_dynamic = roi_img_dynamic.astype("float32") / 255.0
 
-    return chars
+    plot_steps([image, grey, edges, contour_image, roi_img_box, roi_img_dynamic])
+
+    return grey
 
 
 def emnist_transform2(image: np.ndarray) -> np.ndarray:
