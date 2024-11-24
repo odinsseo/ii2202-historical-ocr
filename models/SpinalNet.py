@@ -26,6 +26,7 @@ batch_size_test = 1000
 learning_rate = 0.005
 momentum = 0.5
 log_interval = 500
+weights_file = join(__root_folder, "models/checkpoint-spinalnet.pt")
 
 
 train_loader = torch.utils.data.DataLoader(
@@ -275,9 +276,6 @@ torch.serialization.add_safe_globals([SpinalVGG])
 def update_lr(optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
-
-
-weights_file = join(__root_folder, "models/checkpoint-spinalnet.pt")
 
 
 # Train the model
