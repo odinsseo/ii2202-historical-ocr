@@ -1,28 +1,7 @@
 import cv2
-import imutils
 import numpy as np
-from imutils.contours import sort_contours
-from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
-from skimage.morphology import skeletonize
 
-def increase_contrast(image: np.ndarray) -> np.ndarray:
-    # converting to LAB color space
-    lab = cv2.cvtColor((image * 255).astype(np.uint8), cv2.COLOR_BGR2LAB)
-    l_channel, a, b = cv2.split(lab)
-
-    # Applying CLAHE to L-channel
-    # feel free to try different values for the limit and grid size:
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    cl = clahe.apply(l_channel)
-
-    # merge the CLAHE enhanced L-channel with the a and b channel
-    limg = cv2.merge((cl, a, b))
-
-    # Converting image from LAB Color model to BGR color spcae
-    enhanced_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-
-    return enhanced_img
 
 
 def plot_steps(imgs):
@@ -97,7 +76,7 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
 
 
 # ~ STEP TRHEE (OPT1: Dynamic ROI)
-def dynamic_roi(img: np.ndarray, coor: tuple, size: int = 28) -> np.ndarray:
+def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.ndarray:
     """
     Extracts and dynamically resizes a Region of Interest (ROI) from an image 
     based on the given bounding box coordinates, ensuring the final output is 28x28 pixels.
@@ -109,7 +88,8 @@ def dynamic_roi(img: np.ndarray, coor: tuple, size: int = 28) -> np.ndarray:
         np.ndarray: The processed ROI as a 28x28 grayscale image.
     """
 
-    (x, y, w, h) = coor
+    # compute the bounding box of the contour
+    (x, y, w, h) = cv2.boundingRect(largest_contour)
 
     #Extract the ROI dynamically based on the bounding box
     roi = img[y : y + h, x : x + w]
@@ -150,7 +130,7 @@ def dynamic_roi(img: np.ndarray, coor: tuple, size: int = 28) -> np.ndarray:
 
 
 # ~ STEP THREE (OPT2: Box ROI)
-def box_roi_and_resizing(img: np.ndarray, coor: tuple, size: int = 28) -> np.ndarray:
+def box_roi_and_resizing(img: np.ndarray, largest_contour: any, size: int = 28) -> np.ndarray:
     """
     Crop an ROI to a square based on bounding box and resize to 28x28.
 
@@ -162,7 +142,15 @@ def box_roi_and_resizing(img: np.ndarray, coor: tuple, size: int = 28) -> np.nda
         np.ndarray: Resized square ROI (28x28).
     """
 
-    (x, y, w, h) = coor
+    # TODO: invetigate this step more if tehre is time: Create a mask for the largest contour
+    # //mask = np.zeros_like(img) 
+    # //cv2.drawContours(img, [largest_contour], -1, 255, thickness=cv2.FILLED)
+
+    # Extract the bounding box of the largest contour
+    (x, y, w, h) = cv2.boundingRect(largest_contour)
+
+    # Crop the ROI around the bounding box
+    roi = img[y:y+h, x:x+w]
 
     # Calculate square bounding box
     side_length = max(w, h)  
@@ -175,80 +163,46 @@ def box_roi_and_resizing(img: np.ndarray, coor: tuple, size: int = 28) -> np.nda
 
     # Crop and resize
     roi = img[y_start:y_end, x_start:x_end]
-    square_roi = cv2.resize(roi, (size, size), interpolation=cv2.INTER_CUBIC)
+
+    # Analyze the highest intensity in the image and add border to image
+    highest_intensity = int(np.max(img)) - 10
+
+    padded_img = cv2.copyMakeBorder(
+        roi, 
+        top=2, 
+        bottom=2, 
+        left=2, 
+        right=2, 
+        borderType=cv2.BORDER_CONSTANT,
+        value= highest_intensity
+    )
+
+    square_roi = cv2.resize(padded_img, (size, size), interpolation=cv2.INTER_CUBIC)
 
     return square_roi
 
 
 
-def emnist_transform(image: np.ndarray) -> np.ndarray:
+def emnist_transform(image: np.ndarray, roi: bool = True, invert: bool = True) -> np.ndarray:
 
     grey = greyscale_and_denoising(image)
-
-    # change levels to black 
     
 
-    largest_contour, edges, contour_image = edge_extraction(grey)
+    if roi: 
+        largest_contour, _, _= edge_extraction(grey)
+        # //largest_contour, edges, contour_image = edge_extraction(grey)
 
-    # compute the bounding box of the contour
-    coor = cv2.boundingRect(largest_contour)
+        # call roi function to adapt to letter size and crop the image to 28x28 pixels
+        roi_img = box_roi_and_resizing(grey, largest_contour)
+        # //roi_img_dynamic = dynamic_roi(grey, largest_contour)
+    
+    final_img = roi_img.astype("float32") / 255.0
 
-    # call roi function to adapt to letter size and crop the image to 28x28 pixels
-    roi_img_box = box_roi_and_resizing(grey, coor)
-    roi_img_dynamic = dynamic_roi(grey, coor)
+    if invert: 
+        # Invert intensity
+        final_img = 1.0 - roi_img
 
-    # //normalized_box = roi_img_box.astype("float32") / 255.0
-    # //normalized_dynamic = roi_img_dynamic.astype("float32") / 255.0
+    # //plot_steps([image, grey, edges, contour_image, roi_img_box, box_img])
 
-    plot_steps([image, grey, edges, contour_image, roi_img_box, roi_img_dynamic])
+    return final_img
 
-    return grey
-
-
-def emnist_transform2(image: np.ndarray) -> np.ndarray:
-   
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    image = (image * 255).astype('uint8')
-
-    # Step 1: Apply Gaussian Blur to reduce noise
-    blurred_image = cv2.GaussianBlur(image, (5, 5), 0)
-
-    # Step 2: Threshold the image
-    _, binary_image = cv2.threshold(blurred_image, 100, 255, cv2.THRESH_BINARY)
-
-    # Step 3: Morphological opening to remove small noise
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel)
-    cleaned_image = cleaned_image.astype('uint8')
-
-    # Step 4: Filter small contours
-    contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    mask = np.zeros_like(cleaned_image)
-
-    print(len(contours))
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        if area > 1250:  # Keep only large contours
-            cv2.drawContours(mask, [contour], -1, 255, -1)
-
-    # Final cleaned image
-    final_image = cv2.bitwise_and(cleaned_image, mask)
-
-    # Display the results
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-    axs[0].imshow(image, cmap='gray')
-    axs[0].set_title('Original Image')
-    axs[0].axis('off')
-
-    axs[1].imshow(binary_image, cmap='gray')
-    axs[1].set_title('Binary Image')
-    axs[1].axis('off')
-
-    axs[2].imshow(final_image, cmap='gray')
-    axs[2].set_title('Cleaned Image')
-    axs[2].axis('off')
-
-    plt.tight_layout()
-    plt.show()
-
-    return final_image
