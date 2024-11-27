@@ -10,6 +10,8 @@ def plot_steps(imgs, titles):
     for i, img in enumerate(imgs):
         axs[i].imshow(img, cmap="gray")
         axs[i].axis("off")
+        axs[i].set_title(titles[i])
+
 
     fig.align_titles()
     plt.tight_layout()
@@ -40,7 +42,7 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     min_val, max_val = np.min(blur), np.max(blur)
     stretched = ((blur - min_val) / (max_val - min_val) * 255).astype(np.uint8)
 
-    return grey, blur, stretched
+    return stretched
 
 
 # ~ STEP TWO (Edge extraction)
@@ -198,7 +200,7 @@ def emnist_transform(
     if roi: 
         largest_contour, _, _ = edge_extraction(grey)
 
-    if largest_contour:
+    if largest_contour is not None and len(largest_contour) > 0:
         # call roi function to adapt to letter size and crop the image to 28x28 pixels
         roi_img = box_roi_and_resizing(grey, largest_contour)
     else:
@@ -210,7 +212,7 @@ def emnist_transform(
         # Invert intensity
         final_img = 1.0 - final_img
 
-    # //titles = ["(a) Original", "(b) Greyscale", "(c) Blurring", "(d) Streching", "(e) Contour Detection", "(f) ROI", "(g) Inverted"]
+    # //titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "(g) Inverted"]
     # //images = [image, grey, roi_img, final_img]
     # //plot_steps(images, titles)
 
