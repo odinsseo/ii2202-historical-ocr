@@ -195,13 +195,12 @@ def emnist_transform(
 
     grey = greyscale_and_denoising(image)
 
-    if roi:
+    if roi: 
         largest_contour, _, _ = edge_extraction(grey)
-        # //largest_contour, edges, contour_image = edge_extraction(grey)
 
+    if largest_contour:
         # call roi function to adapt to letter size and crop the image to 28x28 pixels
         roi_img = box_roi_and_resizing(grey, largest_contour)
-        # //roi_img_dynamic = dynamic_roi(grey, largest_contour)
     else:
         roi_img = grey
 
