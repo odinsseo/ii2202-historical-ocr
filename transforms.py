@@ -210,8 +210,8 @@ def emnist_transform(
         # Invert intensity
         final_img = 1.0 - final_img
 
-    titles = ["(a) Original", "(b) Greyscale", "(c) Blurring", "(d) Streching", "(e) Contour Detection", "(f) ROI", "(g) Inverted"]
-    images = [image, grey, roi_img, final_img]
-    plot_steps(images, titles)
+    # //titles = ["(a) Original", "(b) Greyscale", "(c) Blurring", "(d) Streching", "(e) Contour Detection", "(f) ROI", "(g) Inverted"]
+    # //images = [image, grey, roi_img, final_img]
+    # //plot_steps(images, titles)
 
     return final_img
