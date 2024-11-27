@@ -3,14 +3,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_steps(imgs):
+def plot_steps(imgs, titles):
 
-    _, axs = plt.subplots(1, len(imgs), figsize=(15, 5))
+    fig, axs = plt.subplots(1, len(imgs), figsize=(15, 5))
 
     for i, img in enumerate(imgs):
         axs[i].imshow(img, cmap="gray")
         axs[i].axis("off")
 
+    fig.align_titles()
     plt.tight_layout()
     plt.show()
 
@@ -39,7 +40,7 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
     min_val, max_val = np.min(blur), np.max(blur)
     stretched = ((blur - min_val) / (max_val - min_val) * 255).astype(np.uint8)
 
-    return stretched
+    return grey, blur, stretched
 
 
 # ~ STEP TWO (Edge extraction)
@@ -66,12 +67,11 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
 
     # Create an image to visualize contours
     contour_image = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
+    # //cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
 
     # Find the largest contour by area
-    largest_contour = max(
-        cnts, key=lambda c: cv2.arcLength(c, closed=False), default=contour_image
-    )
+    largest_contour = max(cnts, key=lambda c: cv2.arcLength(c, closed=False))
+    #// cv2.drawContours(contour_image, largest_contour, -1, (0, 255, 0), 1)
 
     return largest_contour, edges, contour_image
 
@@ -211,6 +211,8 @@ def emnist_transform(
         # Invert intensity
         final_img = 1.0 - final_img
 
-    # //plot_steps([image, grey, edges, contour_image, roi_img_box, box_img])
+    titles = ["(a) Original", "(b) Greyscale", "(c) Blurring", "(d) Streching", "(e) Contour Detection", "(f) ROI", "(g) Inverted"]
+    images = [image, grey, roi_img, final_img]
+    plot_steps(images, titles)
 
     return final_img
