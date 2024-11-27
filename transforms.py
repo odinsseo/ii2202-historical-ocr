@@ -19,7 +19,7 @@ def plot_steps(imgs, titles):
 
 
 # ~ STEP ONE (Greyscale)
-def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
+def greyscale_and_denoising(img: np.ndarray, binary: bool = False, sigmaX: float = 1.0) -> np.ndarray:
     """
     Convert an image to grayscale, normalize intensity values, and apply Gaussian blur for denoising.
     Args:
@@ -40,9 +40,13 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
 
     # Stretch contrast
     min_val, max_val = np.min(blur), np.max(blur)
-    stretched = ((blur - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+    final_img = ((blur - min_val) / (max_val - min_val) * 255).astype(np.uint8)
 
-    return stretched
+    if binary:
+        # Switch to binary
+        _, final_img = cv2.threshold(final_img, 128, 255, cv2.THRESH_BINARY)
+
+    return final_img
 
 
 # ~ STEP TWO (Edge extraction)
@@ -69,11 +73,9 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
 
     # Create an image to visualize contours
     contour_image = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    # //cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
-
+ 
     # Find the largest contour by area
-    largest_contour = max(cnts, key=lambda c: cv2.arcLength(c, closed=False))
-    #// cv2.drawContours(contour_image, largest_contour, -1, (0, 255, 0), 1)
+    largest_contour = max(cnts, key=lambda c: cv2.arcLength(c, closed=False)) if cnts else []
 
     return largest_contour, edges, contour_image
 
@@ -192,10 +194,10 @@ def box_roi_and_resizing(
 
 
 def emnist_transform(
-    image: np.ndarray, roi: bool = True, invert: bool = True
+    image: np.ndarray, roi: bool = True, invert: bool = True, binary = False
 ) -> np.ndarray:
 
-    grey = greyscale_and_denoising(image)
+    grey = greyscale_and_denoising(image, binary)
 
     if roi: 
         largest_contour, _, _ = edge_extraction(grey)
