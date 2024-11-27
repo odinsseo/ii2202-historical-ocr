@@ -63,7 +63,7 @@ def get_class_avarage_image(
     Notes:
         Assumes each image has been preprocessed to have a single channel (e.g., grayscale).
     """
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=4)
 
     # Initialize arrays to accumulate pixel values and counts for each class
     pixel_sums = np.zeros((num_classes, *image_shape), dtype=np.float32)

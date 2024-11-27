@@ -1,29 +1,95 @@
 from pathlib import Path
+from typing import Literal
 
-from torch.utils.data import ConcatDataset
+import numpy as np
+from PIL.Image import Image
+from torch import Tensor
 from torchvision.datasets import EMNIST as TorchEMNIST
 from torchvision.datasets import ImageFolder
-from torchvision.transforms import ToTensor
+from torchvision.transforms import (
+    Compose,
+    Grayscale,
+    InterpolationMode,
+    Lambda,
+    Normalize,
+    Resize,
+    ToTensor,
+)
+
+from transforms import emnist_transform
 
 __root_folder = Path(__file__).parent.resolve().as_posix()
 
-EMNIST = ConcatDataset(
-    [
-        TorchEMNIST(
-            root=f"{__root_folder}/datasets/",
-            split="balanced",
-            train=True,
-            transform=ToTensor(),
-        ),
-        TorchEMNIST(
-            root=f"{__root_folder}/datasets/",
-            split="balanced",
-            train=False,
-            transform=ToTensor(),
-        ),
-    ]
+EMNIST_TRAIN = TorchEMNIST(
+    root=f"{__root_folder}/datasets/",
+    split="balanced",
+    train=True,
+    transform=ToTensor(),
+)
+EMNIST_TEST = TorchEMNIST(
+    root=f"{__root_folder}/datasets/",
+    split="balanced",
+    train=False,
+    transform=Compose(
+        [
+            ToTensor(),
+            Normalize((0.1307,), (0.3081,)),
+        ]
+    ),
 )
 
-DIDA = ImageFolder(root=f"{__root_folder}/datasets/DIDA", transform=ToTensor())
 
-CARDIS = ImageFolder(root=f"{__root_folder}/datasets/CARDIS", transform=ToTensor())
+def invert_image(x: Tensor) -> Tensor:
+    return 1.0 - x
+
+
+def basic_transform(x: np.ndarray) -> np.ndarray:
+    return emnist_transform(x, roi=False, invert=True)
+
+
+def roi_transform(x: np.ndarray) -> np.ndarray:
+    return emnist_transform(x, roi=True, invert=True)
+
+
+def non_inverted_transform(x: np.ndarray) -> np.ndarray:
+    return emnist_transform(x, roi=False, invert=False)
+
+
+def to_numpy(x: Image) -> np.ndarray:
+    return np.array(x)
+
+
+def get_historical_dataset(
+    type: Literal["raw", "basic", "roi", "non-inverted"]
+) -> ImageFolder:
+    if type == "raw":
+        transform = Compose(
+            [
+                Grayscale(1),
+                Resize((28, 28), interpolation=InterpolationMode.BICUBIC),
+                ToTensor(),
+                Lambda(invert_image),
+            ]
+        )
+    elif type == "basic":
+        transform = Compose([Lambda(to_numpy), Lambda(basic_transform), ToTensor()])
+    elif type == "roi":
+        transform = Compose(
+            [
+                Lambda(to_numpy),
+                Lambda(roi_transform),
+                ToTensor(),
+                Normalize((0.1307,), (0.3081,)),
+            ]
+        )
+    else:  # non-inverted
+        transform = Compose(
+            [Lambda(to_numpy), Lambda(non_inverted_transform), ToTensor()]
+        )
+
+    historical = ImageFolder(
+        f"{__root_folder}/datasets/HISTORICAL", transform=transform
+    )
+    historical.class_to_idx = EMNIST_TRAIN.class_to_idx
+
+    return historical

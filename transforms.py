@@ -1,16 +1,15 @@
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 
 def plot_steps(imgs):
 
     _, axs = plt.subplots(1, len(imgs), figsize=(15, 5))
 
-    for i,img in enumerate(imgs): 
-        axs[i].imshow(img, cmap='gray')
-        axs[i].axis('off')
+    for i, img in enumerate(imgs):
+        axs[i].imshow(img, cmap="gray")
+        axs[i].axis("off")
 
     plt.tight_layout()
     plt.show()
@@ -46,7 +45,7 @@ def greyscale_and_denoising(img: np.ndarray, sigmaX: float = 1.0) -> np.ndarray:
 # ~ STEP TWO (Edge extraction)
 def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple:
     """
-    Extract the largest contour from an image and return the contour, edges, 
+    Extract the largest contour from an image and return the contour, edges,
     and an annotated image showing the contours.
 
     Args:
@@ -70,7 +69,9 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
     cv2.drawContours(contour_image, cnts, -1, (0, 255, 0), 1)
 
     # Find the largest contour by area
-    largest_contour = max(cnts, key=lambda c: cv2.arcLength(c, closed=False))
+    largest_contour = max(
+        cnts, key=lambda c: cv2.arcLength(c, closed=False), default=contour_image
+    )
 
     return largest_contour, edges, contour_image
 
@@ -78,7 +79,7 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
 # ~ STEP TRHEE (OPT1: Dynamic ROI)
 def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.ndarray:
     """
-    Extracts and dynamically resizes a Region of Interest (ROI) from an image 
+    Extracts and dynamically resizes a Region of Interest (ROI) from an image
     based on the given bounding box coordinates, ensuring the final output is 28x28 pixels.
 
     Args:
@@ -91,25 +92,29 @@ def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.nda
     # compute the bounding box of the contour
     (x, y, w, h) = cv2.boundingRect(largest_contour)
 
-    #Extract the ROI dynamically based on the bounding box
+    # Extract the ROI dynamically based on the bounding box
     roi = img[y : y + h, x : x + w]
 
-    #Resize dynamically based on the largest contour
+    # Resize dynamically based on the largest contour
     tH, tW = roi.shape
 
     if tW > tH:
-        resized_roi = cv2.resize(roi, (32, int(32 * tH / tW)), interpolation=cv2.INTER_CUBIC)
+        resized_roi = cv2.resize(
+            roi, (32, int(32 * tH / tW)), interpolation=cv2.INTER_CUBIC
+        )
     else:
-        resized_roi = cv2.resize(roi, (int(32 * tW / tH), 32), interpolation=cv2.INTER_CUBIC)
+        resized_roi = cv2.resize(
+            roi, (int(32 * tW / tH), 32), interpolation=cv2.INTER_CUBIC
+        )
 
-    #Recalculate dimensions after resizing
+    # Recalculate dimensions after resizing
     tH, tW = resized_roi.shape
 
-    #Padding to enforce 28x28 size
+    # Padding to enforce 28x28 size
     dX = max((28 - tW) // 2, 0)
     dY = max((28 - tH) // 2, 0)
-    
-    #Calculate the background intensity (e.g., median intensity)
+
+    # Calculate the background intensity (e.g., median intensity)
     background_intensity = int(np.median(img))
 
     # Apply padding
@@ -123,14 +128,16 @@ def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.nda
         value=background_intensity,
     )
 
-    #Final resize to enforce exact 28x28 dimensions (if needed)
+    # Final resize to enforce exact 28x28 dimensions (if needed)
     padded = cv2.resize(padded, (size, size), interpolation=cv2.INTER_CUBIC)
 
     return padded
 
 
 # ~ STEP THREE (OPT2: Box ROI)
-def box_roi_and_resizing(img: np.ndarray, largest_contour: any, size: int = 28) -> np.ndarray:
+def box_roi_and_resizing(
+    img: np.ndarray, largest_contour: any, size: int = 28
+) -> np.ndarray:
     """
     Crop an ROI to a square based on bounding box and resize to 28x28.
 
@@ -143,17 +150,17 @@ def box_roi_and_resizing(img: np.ndarray, largest_contour: any, size: int = 28) 
     """
 
     # TODO: invetigate this step more if tehre is time: Create a mask for the largest contour
-    # //mask = np.zeros_like(img) 
+    # //mask = np.zeros_like(img)
     # //cv2.drawContours(img, [largest_contour], -1, 255, thickness=cv2.FILLED)
 
     # Extract the bounding box of the largest contour
     (x, y, w, h) = cv2.boundingRect(largest_contour)
 
     # Crop the ROI around the bounding box
-    roi = img[y:y+h, x:x+w]
+    roi = img[y : y + h, x : x + w]
 
     # Calculate square bounding box
-    side_length = max(w, h)  
+    side_length = max(w, h)
     center_x = x + w // 2
     center_y = y + h // 2
     x_start = max(center_x - side_length // 2, 0)
@@ -168,13 +175,13 @@ def box_roi_and_resizing(img: np.ndarray, largest_contour: any, size: int = 28) 
     highest_intensity = int(np.max(img)) - 10
 
     padded_img = cv2.copyMakeBorder(
-        roi, 
-        top=2, 
-        bottom=2, 
-        left=2, 
-        right=2, 
+        roi,
+        top=2,
+        bottom=2,
+        left=2,
+        right=2,
         borderType=cv2.BORDER_CONSTANT,
-        value= highest_intensity
+        value=highest_intensity,
     )
 
     square_roi = cv2.resize(padded_img, (size, size), interpolation=cv2.INTER_CUBIC)
@@ -182,27 +189,28 @@ def box_roi_and_resizing(img: np.ndarray, largest_contour: any, size: int = 28) 
     return square_roi
 
 
-
-def emnist_transform(image: np.ndarray, roi: bool = True, invert: bool = True) -> np.ndarray:
+def emnist_transform(
+    image: np.ndarray, roi: bool = True, invert: bool = True
+) -> np.ndarray:
 
     grey = greyscale_and_denoising(image)
-    
 
-    if roi: 
-        largest_contour, _, _= edge_extraction(grey)
+    if roi:
+        largest_contour, _, _ = edge_extraction(grey)
         # //largest_contour, edges, contour_image = edge_extraction(grey)
 
         # call roi function to adapt to letter size and crop the image to 28x28 pixels
         roi_img = box_roi_and_resizing(grey, largest_contour)
         # //roi_img_dynamic = dynamic_roi(grey, largest_contour)
-    
-    final_img = roi_img.astype("float32") / 255.0
+    else:
+        roi_img = grey
 
-    if invert: 
+    final_img = roi_img.astype(np.float32) / 255.0
+
+    if invert:
         # Invert intensity
-        final_img = 1.0 - roi_img
+        final_img = 1.0 - final_img
 
     # //plot_steps([image, grey, edges, contour_image, roi_img_box, box_img])
 
     return final_img
-
