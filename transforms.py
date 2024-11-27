@@ -44,7 +44,7 @@ def greyscale_and_denoising(img: np.ndarray, binary: bool = False, sigmaX: float
 
     if binary:
         # Switch to binary
-        _, final_img = cv2.threshold(final_img, 128, 255, cv2.THRESH_BINARY)
+        _, final_img = cv2.threshold(final_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     return final_img
 
@@ -118,9 +118,6 @@ def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.nda
     dX = max((28 - tW) // 2, 0)
     dY = max((28 - tH) // 2, 0)
 
-    # Calculate the background intensity (e.g., median intensity)
-    background_intensity = int(np.median(img))
-
     # Apply padding
     padded = cv2.copyMakeBorder(
         resized_roi,
@@ -129,7 +126,7 @@ def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.nda
         left=dX,
         right=dX,
         borderType=cv2.BORDER_CONSTANT,
-        value=background_intensity,
+        value=255,
     )
 
     # Final resize to enforce exact 28x28 dimensions (if needed)
@@ -204,7 +201,8 @@ def emnist_transform(
 
     if largest_contour is not None and len(largest_contour) > 0:
         # call roi function to adapt to letter size and crop the image to 28x28 pixels
-        roi_img = box_roi_and_resizing(grey, largest_contour)
+        # //roi_img = box_roi_and_resizing(grey, largest_contour)
+        roi_img = dynamic_roi(grey, largest_contour)
     else:
         roi_img = grey
 
@@ -214,8 +212,8 @@ def emnist_transform(
         # Invert intensity
         final_img = 1.0 - final_img
 
-    # //titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "(g) Inverted"]
-    # //images = [image, grey, roi_img, final_img]
-    # //plot_steps(images, titles)
+    titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "(g) Inverted"]
+    images = [image, grey, roi_img, final_img]
+    plot_steps(images, titles)
 
     return final_img
