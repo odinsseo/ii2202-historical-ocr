@@ -172,9 +172,6 @@ def box_roi_and_resizing(
     # Crop and resize
     roi = img[y_start:y_end, x_start:x_end]
 
-    # Analyze the highest intensity in the image and add border to image
-    highest_intensity = int(np.max(img)) - 10
-
     padded_img = cv2.copyMakeBorder(
         roi,
         top=2,
@@ -182,7 +179,7 @@ def box_roi_and_resizing(
         left=2,
         right=2,
         borderType=cv2.BORDER_CONSTANT,
-        value=highest_intensity,
+        value=int(np.max(img)),
     )
 
     square_roi = cv2.resize(padded_img, (size, size), interpolation=cv2.INTER_CUBIC)
@@ -201,8 +198,8 @@ def emnist_transform(
 
     if largest_contour is not None and len(largest_contour) > 0:
         # call roi function to adapt to letter size and crop the image to 28x28 pixels
-        # //roi_img = box_roi_and_resizing(grey, largest_contour)
-        roi_img = dynamic_roi(grey, largest_contour)
+        roi_img = box_roi_and_resizing(grey, largest_contour)
+        #roi_img = dynamic_roi(grey, largest_contour)
     else:
         roi_img = grey
 
