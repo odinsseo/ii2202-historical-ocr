@@ -51,8 +51,8 @@ def roi_transform(x: np.ndarray) -> np.ndarray:
     return emnist_transform(x, roi=True, invert=True)
 
 
-def non_inverted_transform(x: np.ndarray) -> np.ndarray:
-    return emnist_transform(x, roi=False, invert=False)
+def binary_transform(x: np.ndarray) -> np.ndarray:
+    return emnist_transform(x, roi=True, invert=True, binary=True)
 
 
 def to_numpy(x: Image) -> np.ndarray:
@@ -60,32 +60,43 @@ def to_numpy(x: Image) -> np.ndarray:
 
 
 def get_historical_dataset(
-    type: Literal["raw", "basic", "roi", "non-inverted"]
+    type: Literal["raw", "basic", "roi", "binary"]
 ) -> ImageFolder:
-    if type == "raw":
-        transform = Compose(
-            [
-                Grayscale(1),
-                Resize((28, 28), interpolation=InterpolationMode.BICUBIC),
-                ToTensor(),
-                Lambda(invert_image),
-            ]
-        )
-    elif type == "basic":
-        transform = Compose([Lambda(to_numpy), Lambda(basic_transform), ToTensor()])
-    elif type == "roi":
-        transform = Compose(
-            [
-                Lambda(to_numpy),
-                Lambda(roi_transform),
-                ToTensor(),
-                Normalize((0.1307,), (0.3081,)),
-            ]
-        )
-    else:  # non-inverted
-        transform = Compose(
-            [Lambda(to_numpy), Lambda(non_inverted_transform), ToTensor()]
-        )
+    match type:
+        case "raw":
+            transform = Compose(
+                [
+                    Grayscale(1),
+                    Resize((28, 28), interpolation=InterpolationMode.BICUBIC),
+                    ToTensor(),
+                    Lambda(invert_image),
+                    Normalize((0.1307,), (0.3081,)),
+                ]
+            )
+        case "basic":
+            transform = Compose([Lambda(to_numpy), Lambda(basic_transform), ToTensor()])
+        case "roi":
+            transform = Compose(
+                [
+                    Lambda(to_numpy),
+                    Lambda(roi_transform),
+                    ToTensor(),
+                    Resize((28, 28), interpolation=InterpolationMode.BICUBIC),
+                    Normalize((0.1307,), (0.3081,)),
+                ]
+            )
+        case "binary":  # non-inverted
+            transform = Compose(
+                [
+                    Lambda(to_numpy),
+                    Lambda(binary_transform),
+                    ToTensor(),
+                    Resize((28, 28), interpolation=InterpolationMode.BICUBIC),
+                    Normalize((0.1307,), (0.3081,)),
+                ]
+            )
+        case _:
+            raise ValueError(f'"{type}" not supported.')
 
     historical = ImageFolder(
         f"{__root_folder}/datasets/HISTORICAL", transform=transform
