@@ -137,7 +137,7 @@ def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.nda
 
 # ~ STEP THREE (OPT2: Box ROI)
 def box_roi_and_resizing(
-    img: np.ndarray, largest_contour: any, size: int = 28
+    img: np.ndarray, largest_contour: any
 ) -> np.ndarray:
     """
     Crop an ROI to a square based on bounding box and resize to 28x28.
@@ -160,20 +160,17 @@ def box_roi_and_resizing(
     # Crop the ROI around the bounding box
     roi = img[y : y + h, x : x + w]
 
-    # Calculate square bounding box
-    side_length = max(w, h)
-    center_x = x + w // 2
-    center_y = y + h // 2
-    x_start = max(center_x - side_length // 2, 0)
-    y_start = max(center_y - side_length // 2, 0)
-    x_end = min(center_x + side_length // 2, img.shape[1])
-    y_end = min(center_y + side_length // 2, img.shape[0])
+    return roi
 
-    # Crop and resize
-    roi = img[y_start:y_end, x_start:x_end]
+
+
+# ~ STEP 4 
+def resize_and_invert(img: np.ndarray, size: int = 28) -> np.ndarray:
+
+    img = cv2.resize(img, (size, size), interpolation=cv2.INTER_CUBIC)
 
     padded_img = cv2.copyMakeBorder(
-        roi,
+        img,
         top=2,
         bottom=2,
         left=2,
@@ -182,9 +179,7 @@ def box_roi_and_resizing(
         value=int(np.max(img)),
     )
 
-    square_roi = cv2.resize(padded_img, (size, size), interpolation=cv2.INTER_CUBIC)
-
-    return square_roi
+    return padded_img
 
 
 def emnist_transform(
@@ -193,6 +188,8 @@ def emnist_transform(
 
     grey = greyscale_and_denoising(image, binary)
 
+    largest_contour = []
+    
     if roi: 
         largest_contour, _, _ = edge_extraction(grey)
 
@@ -203,14 +200,16 @@ def emnist_transform(
     else:
         roi_img = grey
 
-    final_img = roi_img.astype(np.float32) / 255.0
+    resize_img = resize_and_invert(roi_img)
+
+    final_img = resize_img.astype(np.float32) / 255.0
 
     if invert:
         # Invert intensity
         final_img = 1.0 - final_img
 
-    # //titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "(g) Inverted"]
-    # //images = [image, grey, roi_img, final_img]
-    # //plot_steps(images, titles)
+    titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "resized", "(g) Inverted"]
+    images = [image, grey, roi_img, resize_img, final_img]
+    plot_steps(images, titles)
 
     return final_img
