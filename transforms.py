@@ -12,14 +12,15 @@ def plot_steps(imgs, titles):
         axs[i].axis("off")
         axs[i].set_title(titles[i])
 
-
     fig.align_titles()
     plt.tight_layout()
     plt.show()
 
 
 # ~ STEP ONE (Greyscale)
-def greyscale_and_denoising(img: np.ndarray, binary: bool = False, sigmaX: float = 1.0) -> np.ndarray:
+def greyscale_and_denoising(
+    img: np.ndarray, binary: bool = False, sigmaX: float = 1.0
+) -> np.ndarray:
     """
     Convert an image to grayscale, normalize intensity values, and apply Gaussian blur for denoising.
     Args:
@@ -44,7 +45,9 @@ def greyscale_and_denoising(img: np.ndarray, binary: bool = False, sigmaX: float
 
     if binary:
         # Switch to binary
-        _, final_img = cv2.threshold(final_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, final_img = cv2.threshold(
+            final_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
 
     return final_img
 
@@ -73,9 +76,11 @@ def edge_extraction(img: np.ndarray, c_th1: int = 30, c_th2: int = 150) -> tuple
 
     # Create an image to visualize contours
     contour_image = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
- 
+
     # Find the largest contour by area
-    largest_contour = max(cnts, key=lambda c: cv2.arcLength(c, closed=False)) if cnts else []
+    largest_contour = (
+        max(cnts, key=lambda c: cv2.arcLength(c, closed=False)) if cnts else []
+    )
 
     return largest_contour, edges, contour_image
 
@@ -136,9 +141,7 @@ def dynamic_roi(img: np.ndarray, largest_contour: any, size: int = 28) -> np.nda
 
 
 # ~ STEP THREE (OPT2: Box ROI)
-def box_roi_and_resizing(
-    img: np.ndarray, largest_contour: any
-) -> np.ndarray:
+def box_roi_and_resizing(img: np.ndarray, largest_contour: any) -> np.ndarray:
     """
     Crop an ROI to a square based on bounding box and resize to 28x28.
 
@@ -163,8 +166,7 @@ def box_roi_and_resizing(
     return roi
 
 
-
-# ~ STEP 4 
+# ~ STEP 4
 def resize_and_invert(img: np.ndarray, size: int = 28) -> np.ndarray:
 
     img = cv2.resize(img, (size, size), interpolation=cv2.INTER_CUBIC)
@@ -183,20 +185,20 @@ def resize_and_invert(img: np.ndarray, size: int = 28) -> np.ndarray:
 
 
 def emnist_transform(
-    image: np.ndarray, roi: bool = True, invert: bool = True, binary = False
+    image: np.ndarray, roi: bool = True, invert: bool = True, binary=False
 ) -> np.ndarray:
 
     grey = greyscale_and_denoising(image, binary)
 
     largest_contour = []
-    
-    if roi: 
+
+    if roi:
         largest_contour, _, _ = edge_extraction(grey)
 
     if largest_contour is not None and len(largest_contour) > 0:
         # call roi function to adapt to letter size and crop the image to 28x28 pixels
         roi_img = box_roi_and_resizing(grey, largest_contour)
-        #roi_img = dynamic_roi(grey, largest_contour)
+        # roi_img = dynamic_roi(grey, largest_contour)
     else:
         roi_img = grey
 
@@ -208,8 +210,8 @@ def emnist_transform(
         # Invert intensity
         final_img = 1.0 - final_img
 
-    titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "resized", "(g) Inverted"]
-    images = [image, grey, roi_img, resize_img, final_img]
-    plot_steps(images, titles)
+    # titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "resized", "(g) Inverted"]
+    # images = [image, grey, roi_img, resize_img, final_img]
+    # plot_steps(images, titles)
 
     return final_img

@@ -1,11 +1,12 @@
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Tuple
 
 import numpy as np
 from PIL.Image import Image
 from torch import Tensor
 from torchvision.datasets import EMNIST as TorchEMNIST
 from torchvision.datasets import ImageFolder
+from torchvision.datasets.folder import default_loader
 from torchvision.transforms import (
     Compose,
     Grayscale,
@@ -59,9 +60,56 @@ def to_numpy(x: Image) -> np.ndarray:
     return np.array(x)
 
 
+class HistoricalImageFolder(ImageFolder):
+    img_extensions = (
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".ppm",
+        ".bmp",
+        ".pgm",
+        ".tif",
+        ".tiff",
+        ".webp",
+    )
+
+    def __init__(
+        self,
+        root,
+        transform=None,
+        target_transform=None,
+        loader=default_loader,
+        is_valid_file=None,
+        allow_empty=False,
+    ):
+        super().__init__(
+            root, transform, target_transform, loader, is_valid_file, allow_empty
+        )
+        self.classes = [cls.upper() for cls in self.classes]
+        self.class_to_idx = {
+            cls: EMNIST_TRAIN.class_to_idx[cls] for cls in self.classes
+        }
+
+        self.samples = self.make_dataset(
+            self.root,
+            class_to_idx=self.class_to_idx,
+            extensions=HistoricalImageFolder.img_extensions,
+            is_valid_file=is_valid_file,
+            allow_empty=allow_empty,
+        )
+
+        self.targets = [s[1] for s in self.samples]
+        self.imgs = self.samples
+
+    def __getitem__(self, index) -> Tuple[Tensor, Tensor, str]:
+        sample, target = super().__getitem__(index)
+
+        return sample, target, self.samples[index][0]
+
+
 def get_historical_dataset(
     type: Literal["raw", "basic", "roi", "binary"]
-) -> ImageFolder:
+) -> HistoricalImageFolder:
     match type:
         case "raw":
             transform = Compose(
@@ -98,9 +146,8 @@ def get_historical_dataset(
         case _:
             raise ValueError(f'"{type}" not supported.')
 
-    historical = ImageFolder(
-        f"{__root_folder}/datasets/HISTORICAL", transform=transform
+    historical = HistoricalImageFolder(
+        f"{__root_folder}/datasets/HISTORICAL-clean", transform=transform
     )
-    historical.class_to_idx = EMNIST_TRAIN.class_to_idx
 
     return historical
