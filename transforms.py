@@ -207,11 +207,12 @@ def emnist_transform(
     final_img = resize_img.astype(np.float32) / 255.0
 
     if invert:
+        
         # Invert intensity
         final_img = 1.0 - final_img
 
-    # titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "resized", "(g) Inverted"]
-    # images = [image, grey, roi_img, resize_img, final_img]
-    # plot_steps(images, titles)
+    # //titles = ["(a) Original", "(b) Greyscale", "(f) ROI", "resized", "(g) Inverted"]
+    # //images = [image, grey, roi_img, resize_img, final_img]
+    #// plot_steps(images, titles)
 
     return final_img
