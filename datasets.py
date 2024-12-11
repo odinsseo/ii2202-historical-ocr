@@ -147,7 +147,7 @@ def get_historical_dataset(
             raise ValueError(f'"{type}" not supported.')
 
     historical = HistoricalImageFolder(
-        f"{__root_folder}/datasets/HISTORICAL-clean", transform=transform
+        f"{__root_folder}/datasets/DIDA-clean", transform=transform
     )
 
     return historical
